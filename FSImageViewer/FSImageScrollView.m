@@ -26,7 +26,7 @@
 
 @implementation FSImageScrollView
 
-- (instancetype)initWithFrame:(CGRect)frame {
+- (id)initWithFrame:(CGRect)frame {
     self = [super initWithFrame:frame];
     if (self) {
         self.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleBottomMargin | UIViewAutoresizingFlexibleTopMargin;
@@ -42,7 +42,7 @@
 		self.alwaysBounceHorizontal = NO;
         self.bouncesZoom = YES;
 		self.scrollsToTop = NO;
-		self.backgroundColor = [UIColor whiteColor];
+		self.backgroundColor = [UIColor clearColor];
 		self.decelerationRate = UIScrollViewDecelerationRateFast;
     }
     return self;

@@ -21,7 +21,7 @@
 //  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 //  THE SOFTWARE.
 //
-#import <UAProgressView/UAProgressView.h>
+
 #import "FSImageView.h"
 #import "FSPlaceholderImages.h"
 #import "FSImageScrollView.h"
@@ -43,27 +43,21 @@
 }
 @end
 
-@interface FSImageView()
-
-@property (nonatomic, strong) UAProgressView *progressView;
-
-@end
-
 @implementation FSImageView {
+    UIActivityIndicatorView *activityView;
     CGFloat beginRadians;
 }
 
-- (instancetype)initWithFrame:(CGRect)frame {
+- (id)initWithFrame:(CGRect)frame {
     if ((self = [super initWithFrame:frame])) {
 
-        self.backgroundColor = [UIColor whiteColor];
+        self.backgroundColor = [UIColor clearColor];
         self.userInteractionEnabled = NO;
         self.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
         self.opaque = YES;
-        self.rotationEnabled = YES;
 
         FSImageScrollView *scrollView = [[FSImageScrollView alloc] initWithFrame:self.bounds];
-        scrollView.backgroundColor = [UIColor whiteColor];
+        scrollView.backgroundColor = [UIColor clearColor];
         scrollView.opaque = YES;
         scrollView.delegate = self;
         [self addSubview:scrollView];
@@ -75,11 +69,11 @@
         imageView.tag = ZOOM_VIEW_TAG;
         [_scrollView addSubview:imageView];
         _imageView = imageView;
-        
-        self.progressView = [[UAProgressView alloc] initWithFrame:CGRectMake((CGRectGetWidth(self.frame) / 2) - 22.0f, CGRectGetHeight(self.frame) / 2 - 22.0f, 44.0f, 44.0f)];
 
-        _progressView.autoresizingMask = UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleBottomMargin | UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleTopMargin;
-        [self addSubview:_progressView];
+        activityView = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleGray];
+        activityView.frame = CGRectMake((CGRectGetWidth(self.frame) / 2) - 11.0f, CGRectGetHeight(self.frame) / 2, 22.0f, 22.0f);
+        activityView.autoresizingMask = UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleBottomMargin | UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleTopMargin;
+        [self addSubview:activityView];
 
         RotateGesture *gesture = [[RotateGesture alloc] initWithTarget:self action:@selector(rotate:)];
         [self addGestureRecognizer:gesture];
@@ -131,8 +125,7 @@
             NSInteger fileSize = [[attributes objectForKey:NSFileSize] integerValue];
 
             if (fileSize >= MB_FILE_SIZE) {
-                _progressView.hidden = NO;
-                [_progressView setProgress:0.5 animated:YES];
+
                 dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
 
                     UIImage *image = nil;
@@ -144,7 +137,7 @@
                     }
 
                     dispatch_async(dispatch_get_main_queue(), ^{
-                        _progressView.hidden = YES;
+
                         if (image != nil) {
                             [self setupImageViewWithImage:image];
                         }
@@ -159,18 +152,13 @@
 
         }
         else {
-            _progressView.hidden = NO;
-            __weak FSImageView *weakSelf = self;
-            [[FSImageLoader sharedInstance] loadImageForURL:_image.URL progress:^(float progress) {
-                [weakSelf.progressView setProgress:progress animated:YES];
-            }image:^(UIImage *image, NSError *error) {
-                __strong FSImageView *strongSelf = weakSelf;
+            [[FSImageLoader sharedInstance] loadImageForURL:_image.URL image:^(UIImage *image, NSError *error) {
                 if (!error) {
-                    strongSelf.image.image = image;
-                    [strongSelf setupImageViewWithImage:image];
+                    _image.image = image;
+                    [self setupImageViewWithImage:image];
                 }
                 else {
-                    [strongSelf handleFailedImage];
+                    [self handleFailedImage];
                 }
             }];
         }
@@ -178,7 +166,8 @@
     }
 
     if (_imageView.image) {
-        _progressView.hidden = YES;
+
+        [activityView stopAnimating];
         self.userInteractionEnabled = YES;
         _loading = NO;
 
@@ -189,6 +178,7 @@
 
     } else {
         _loading = YES;
+        [activityView startAnimating];
         self.userInteractionEnabled = NO;
     }
     [self layoutScrollViewAnimated:NO];
@@ -200,7 +190,7 @@
     }
 
     _loading = NO;
-    _progressView.hidden = YES;
+    [activityView stopAnimating];
     _imageView.image = aImage;
     [self layoutScrollViewAnimated:NO];
 
@@ -218,13 +208,6 @@
 }
 
 - (void)changeBackgroundColor:(UIColor *)color {
-    self.backgroundColor = color;
-    self.imageView.backgroundColor = color;
-    self.scrollView.backgroundColor = color;
-}
-
-- (void)changeProgressViewColor:(UIColor *)color {
-    _progressView.tintColor = color;
 }
 
 
@@ -234,7 +217,7 @@
     _image.failed = YES;
     [self layoutScrollViewAnimated:NO];
     self.userInteractionEnabled = NO;
-    _progressView.hidden = YES;
+    [activityView stopAnimating];
     [[NSNotificationCenter defaultCenter] postNotificationName:kFSImageViewerDidFinishedLoadingNotificationKey object:@{
             @"image" : self.image,
             @"failed" : @(YES)
@@ -242,9 +225,6 @@
 }
 
 - (void)resetBackgroundColors {
-    self.backgroundColor = [UIColor whiteColor];
-    self.superview.backgroundColor = self.backgroundColor;
-    self.superview.superview.backgroundColor = self.backgroundColor;
 }
 
 
@@ -328,7 +308,7 @@
 
 - (void)killScrollViewZoom {
 
-    if (!self.scrollView.zoomScale > 1.0f) return;
+    if (self.scrollView.zoomScale <= 1.0f) return;
 
     if (!self.imageView.image) {
         return;
@@ -366,8 +346,10 @@
 
     if (scrollView.zoomScale > 1.0f) {
 
-        CGFloat height;
-        CGFloat width;
+        CGFloat height, width;
+        height = MIN(CGRectGetHeight(self.imageView.frame) + self.imageView.frame.origin.x, CGRectGetHeight(self.bounds));
+        width = MIN(CGRectGetWidth(self.imageView.frame) + self.imageView.frame.origin.y, CGRectGetWidth(self.bounds));
+
 
         if (CGRectGetMaxX(self.imageView.frame) > self.bounds.size.width) {
             width = CGRectGetWidth(self.bounds);
@@ -417,9 +399,6 @@
 
 - (void)rotate:(UIRotationGestureRecognizer *)gesture {
 
-    if (!_rotationEnabled) {
-        return;
-    }
     if (gesture.state == UIGestureRecognizerStateBegan) {
         [self.layer removeAllAnimations];
         beginRadians = gesture.rotation;

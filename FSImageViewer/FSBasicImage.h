@@ -29,16 +29,16 @@
 
 /// @param URL remote image URL
 /// @param name title of the image
-- (instancetype _Nonnull)initWithImageURL:(NSURL * _Nonnull)URL name:(NSString * _Nullable)name;
+- (id)initWithImageURL:(NSURL *)URL name:(NSString *)name;
 
 /// @param URL remote image URL
-- (instancetype _Nonnull)initWithImageURL:(NSURL * _Nonnull)URL;
+- (id)initWithImageURL:(NSURL *)URL;
 
 /// @param image an UIImage representation of the image
-- (instancetype _Nonnull)initWithImage:(UIImage * _Nonnull)image;
+- (id)initWithImage:(UIImage *)image;
 
 /// @param image an UIImage representation of the image
 /// @param name title of the image
-- (instancetype _Nonnull)initWithImage:(UIImage * _Nonnull)image name:(NSString * _Nullable)name;
+- (id)initWithImage:(UIImage *)image name:(NSString *)name;
 
 @end

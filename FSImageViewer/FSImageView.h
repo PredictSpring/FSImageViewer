@@ -35,7 +35,6 @@
 @property(strong, nonatomic, readonly) UIImageView *imageView;
 @property(strong, nonatomic, readonly) FSImageScrollView *scrollView;
 @property(assign, nonatomic) BOOL loading;
-@property(assign, nonatomic) BOOL rotationEnabled;
 
 - (void)killScrollViewZoom;
 
@@ -44,8 +43,6 @@
 - (void)prepareForReuse;
 
 - (void)changeBackgroundColor:(UIColor *)color;
-
-- (void)changeProgressViewColor:(UIColor *)color;
 
 - (void)rotateToOrientation:(UIInterfaceOrientation)orientation;
 

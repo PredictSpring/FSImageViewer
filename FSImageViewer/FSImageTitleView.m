@@ -30,10 +30,10 @@
     BOOL hidden;
 }
 
-- (instancetype)initWithFrame:(CGRect)frame {
+- (id)initWithFrame:(CGRect)frame {
     if ((self = [super initWithFrame:frame])) {
 
-        self.backgroundColor = [UIColor colorWithWhite:0.0f alpha:0.3f];
+        self.backgroundColor = [UIColor clearColor];
         self.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleTopMargin;
 
         textLabel = [[UILabel alloc] initWithFrame:CGRectMake(20.0f, 0.0f, self.frame.size.width - 40.0f, 40.0f)];
@@ -116,10 +116,6 @@
     hidden = value;
 }
 
-- (void)setHidden:(BOOL)aHidden {
-    hidden = aHidden;
-}
-
 - (BOOL)isHidden {
     return hidden;
 }
@@ -129,19 +125,21 @@
 }
 
 - (void)adjustFontSizeToFit {
+    UIFont *font = textLabel.font;
+    CGSize size = textLabel.frame.size;
     
-    for (int i = textLabel.font.pointSize; i>textLabel.minimumScaleFactor * textLabel.font.pointSize; i--) {
+    for (CGFloat maxSize = textLabel.font.pointSize; maxSize >= textLabel.minimumScaleFactor * textLabel.font.pointSize; maxSize -= 1.f) {
+        font = [font fontWithSize:maxSize];
+        CGSize constraintSize = CGSizeMake(size.width, MAXFLOAT);
+        CGSize labelSize = [textLabel.text sizeWithFont:font constrainedToSize:constraintSize lineBreakMode:textLabel.lineBreakMode];
         
-        UIFont *font = [UIFont fontWithName:textLabel.font.fontName size:(CGFloat)i];
-        NSAttributedString *attributedText = [[NSAttributedString alloc] initWithString:textLabel.text attributes:@{NSFontAttributeName: font}];
-        
-        CGRect rectSize = [attributedText boundingRectWithSize:CGSizeMake(self.frame.size.width, CGFLOAT_MAX) options:NSStringDrawingUsesLineFragmentOrigin context:nil];
-        
-        if (rectSize.size.height <= self.frame.size.height) {
-            textLabel.font = [UIFont fontWithName:textLabel.font.fontName size:(CGFloat)i];
+        if(labelSize.height <= size.height) {
+            textLabel.font = font;
+            [textLabel setNeedsLayout];
             break;
         }
     }
+    
 }
 
 @end

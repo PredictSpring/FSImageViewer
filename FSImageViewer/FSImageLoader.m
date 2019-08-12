@@ -22,11 +22,8 @@
 //  THE SOFTWARE.
 //
 
-#import <EGOCache/EGOCache.h>
-#import <CommonCrypto/CommonDigest.h>
+#import "EGOCache.h"
 #import "FSImageLoader.h"
-#import "AFHTTPRequestOperation.h"
-
 @implementation FSImageLoader {
     NSMutableArray *runningRequests;
 }
@@ -40,7 +37,7 @@
     return sharedInstance;
 }
 
-- (instancetype)init {
+- (id)init {
     self = [super init];
     if (self) {
         self.timeoutInterval = 30.0;
@@ -51,25 +48,15 @@
 }
 
 - (void)dealloc {
-    [self cancelAllRequests];
 }
 
 - (void)cancelAllRequests {
-    for (AFHTTPRequestOperation *imageRequestOperation in runningRequests) {
-        [imageRequestOperation cancel];
-    }
 }
 
 - (void)cancelRequestForUrl:(NSURL *)aURL {
-    for (AFHTTPRequestOperation *imageRequestOperation in runningRequests) {
-        if ([imageRequestOperation.request.URL isEqual:aURL]) {
-            [imageRequestOperation cancel];
-            break;
-        }
-    }
 }
 
-- (void)loadImageForURL:(NSURL *)aURL progress:(void (^)(float progress))progress image:(void (^)(UIImage *image, NSError *error))imageBlock {
+- (void)loadImageForURL:(NSURL *)aURL image:(void (^)(UIImage *image, NSError *error))imageBlock {
 
     if (!aURL) {
         NSError *error = [NSError errorWithDomain:@"de.felixschulze.fsimageloader" code:412 userInfo:@{
@@ -77,24 +64,9 @@
         }];
         imageBlock(nil, error);
     };
-    
-    NSString *urlString = [[aURL absoluteString] copy];
-    NSData *data = [urlString dataUsingEncoding:NSUTF8StringEncoding];
-    uint8_t digest[CC_SHA1_DIGEST_LENGTH];
-    CC_SHA1(data.bytes, (CC_LONG)data.length, digest);
-    NSMutableString *urlStringSha1 = [NSMutableString stringWithCapacity:CC_SHA1_DIGEST_LENGTH * 2];
-    for (int i = 0; i < CC_SHA1_DIGEST_LENGTH; i++) {
-        [urlStringSha1 appendFormat:@"%02x", digest[i]];
-    }
-    NSString *cacheKey = [NSString stringWithFormat:@"FSImageLoader-%@", [urlStringSha1 copy]];
-    UIImage *anImage = [[EGOCache globalCache] imageForKey:cacheKey];
-    
-    if (!anImage) {
-        // Deprecated cacheKey
-        NSString *deprecatedCacheKey = [NSString stringWithFormat:@"FSImageLoader-%lu", (unsigned long) [[aURL description] hash]];
-        anImage = [[EGOCache globalCache] imageForKey:deprecatedCacheKey];
-    }
+    NSString *cacheKey = [NSString stringWithFormat:@"FSImageLoader-%@", aURL];
 
+    UIImage *anImage = [[EGOCache globalCache] imageForKey:cacheKey];
 
     if (anImage) {
         if (imageBlock) {
@@ -102,36 +74,19 @@
         }
     }
     else {
-        [self cancelRequestForUrl:aURL];
-
-        NSURLRequest *urlRequest = [[NSURLRequest alloc] initWithURL:aURL cachePolicy:NSURLRequestReturnCacheDataElseLoad timeoutInterval:_timeoutInterval];
-        AFHTTPRequestOperation *imageRequestOperation = [[AFHTTPRequestOperation alloc] initWithRequest:urlRequest];
-        imageRequestOperation.responseSerializer = [AFImageResponseSerializer serializer];
-        [runningRequests addObject:imageRequestOperation];
-        __weak AFHTTPRequestOperation *imageRequestOperationForBlock = imageRequestOperation;
-
-        [imageRequestOperation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation *operation, id responseObject) {
-            UIImage *image = responseObject;
-            [[EGOCache globalCache] setImage:image forKey:cacheKey];
-            if (imageBlock) {
-                imageBlock(image, nil);
-            }
-            [runningRequests removeObject:imageRequestOperationForBlock];
-        } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
-            if (imageBlock) {
-                imageBlock(nil, error);
-            }
-            [runningRequests removeObject:imageRequestOperationForBlock];
-        }];
-        
-        [imageRequestOperation setDownloadProgressBlock:^(NSUInteger bytesRead, long long totalBytesRead, long long totalBytesExpectedToRead) {
-            if (progress) {
-                progress((float)totalBytesRead / totalBytesExpectedToRead);
-            }
-        }];
-        
-        [imageRequestOperation start];
+        NSURLSession *session = [NSURLSession sharedSession];
+        [[session dataTaskWithURL:aURL
+                completionHandler:^(NSData *data,
+                                    NSURLResponse *response,
+                                    NSError *error) {
+                    if (!error) {
+                        UIImage * image = [UIImage imageWithData:data];
+                        [[EGOCache globalCache] setImage:image forKey:cacheKey];
+                        if (imageBlock) {
+                            imageBlock(image, nil);
+                        }
+                    }
+                }] resume];
     }
 }
-
 @end

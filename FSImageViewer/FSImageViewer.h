@@ -38,7 +38,7 @@
 #endif
 
 #ifndef kFSImageViewerImageGap
-	#define kFSImageViewerImageGap 30
+	#define kFSImageViewerImageGap 10
 #endif
 
 #ifndef kFSImageViewerZoomScale
